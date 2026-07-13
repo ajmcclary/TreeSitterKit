@@ -8,16 +8,31 @@ import Testing
 import TreeSitterCore
 import TreeSitterStandardLanguages
 import TreeSitterGrammarAuthoring
+import TreeSitterStandardLanguagesAuthoring
 import TreeSitterDiagnostics
 
 /// Verifies the product boundaries created by splitting TreeSitterKit into
-/// stable (Core/StandardLanguages), authoring (GrammarAuthoring), and
-/// diagnostic (Diagnostics) surfaces.
+/// stable (Core/StandardLanguages), custom-grammar authoring
+/// (GrammarAuthoring), standard-languages authoring
+/// (StandardLanguagesAuthoring), and diagnostic (Diagnostics) surfaces.
+///
+/// Manifest-level boundary pin (see `Package.swift`): the
+/// `TreeSitterGrammarAuthoring` target depends on `TreeSitterCore` ALONE — it
+/// does NOT depend on `TreeSitterStandardLanguages`, so importing it to build a
+/// custom registration (below) resolves and links none of the 14 bundled
+/// grammar targets. The standard-languages authoring accessors
+/// (`standardLanguageQuerySources()` / `standardRegistrations()`) instead live
+/// in `TreeSitterStandardLanguagesAuthoring`, which DOES link
+/// `TreeSitterStandardLanguages`. `makeRegistrationIsPubliclyConstructible`
+/// exercises only the grammars-free `GrammarAuthoring` module; the two
+/// `StandardLanguagesAuthoring` tests exercise the grammar-linked one. A
+/// true link-level negative test is not required — the split is enforced by the
+/// manifest dependency claim above and this API split.
 @Suite struct ModuleBoundaryTests {
-    // MARK: - Grammar authoring is the public path to query sources
+    // MARK: - Standard-languages authoring is the public path to query sources
 
-    @Test func grammarAuthoringExposesStandardQuerySources() throws {
-        let sources = try GrammarAuthoring.standardLanguageQuerySources()
+    @Test func standardLanguagesAuthoringExposesStandardQuerySources() throws {
+        let sources = try StandardLanguagesAuthoring.standardLanguageQuerySources()
         #expect(sources.count == 14)
         for source in sources {
             #expect(source.highlightQuerySource?.isEmpty == false, "\(source.language) highlight source")
@@ -26,7 +41,7 @@ import TreeSitterDiagnostics
     }
 
     @Test func standardTypeScriptAndTSXShareQueryTextThroughAuthoringAPI() throws {
-        let sources = try GrammarAuthoring.standardLanguageQuerySources()
+        let sources = try StandardLanguagesAuthoring.standardLanguageQuerySources()
         let ts = try #require(sources.first { $0.language == .typescript })
         let tsx = try #require(sources.first { $0.language == .tsx })
         // Same RepoPrompt oddity the characterization test pins, reached here
@@ -35,19 +50,23 @@ import TreeSitterDiagnostics
         #expect(ts.codeMapQuerySource == tsx.codeMapQuerySource)
     }
 
-    // MARK: - Grammar authoring is the public path to registration construction
+    // MARK: - Standard-languages authoring is the public path to registration construction
 
     @Test func standardRegistrationsBuildACustomParser() throws {
-        let registrations = try GrammarAuthoring.standardRegistrations()
+        let registrations = try StandardLanguagesAuthoring.standardRegistrations()
         #expect(registrations.count == 14)
         let parser = SyntaxParser(registrations: registrations)
         #expect(parser.supportedLanguages.count == 14)
         #expect(parser.isSupported(.swift))
     }
 
+    // MARK: - Grammar authoring is the (grammars-free) path to custom registrations
+
     @Test func makeRegistrationIsPubliclyConstructible() throws {
         // The raw grammar-pointer initializer is SPI on the Core type; the
-        // public constructor is `GrammarAuthoring.makeRegistration`.
+        // public constructor is `GrammarAuthoring.makeRegistration`, from the
+        // `TreeSitterGrammarAuthoring` product (TreeSitterCore only — no
+        // standard grammars linked).
         let custom = LanguageID("madeuplang")
         let registration = GrammarAuthoring.makeRegistration(
             language: custom,

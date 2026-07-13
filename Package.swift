@@ -22,6 +22,7 @@ let package = Package(
         .library(name: "TreeSitterCore", targets: ["TreeSitterCore"]),
         .library(name: "TreeSitterStandardLanguages", targets: ["TreeSitterStandardLanguages"]),
         .library(name: "TreeSitterGrammarAuthoring", targets: ["TreeSitterGrammarAuthoring"]),
+        .library(name: "TreeSitterStandardLanguagesAuthoring", targets: ["TreeSitterStandardLanguagesAuthoring"]),
         .library(name: "TreeSitterDiagnostics", targets: ["TreeSitterDiagnostics"]),
         .library(name: "TreeSitterTestSupport", targets: ["TreeSitterTestSupport"]),
     ],
@@ -109,12 +110,28 @@ let package = Package(
             ],
             swiftSettings: swiftSettings
         ),
-        // The public grammar-authoring path: constructing custom-language
-        // registrations (raw grammar-pointer closures) and reading the
-        // standard languages' bundled `.scm` query sources. Reaches the
-        // `@_spi(GrammarAuthoring)` surface of Core and StandardLanguages.
+        // The public custom-grammar-authoring path: constructing custom-language
+        // registrations (raw grammar-pointer closures). Reaches only the
+        // `@_spi(GrammarAuthoring)` surface of Core, so it depends on
+        // TreeSitterCore ALONE — importing this product does NOT resolve or link
+        // the 14 standard grammars. The standard languages' authoring accessors
+        // live in TreeSitterStandardLanguagesAuthoring.
         .target(
             name: "TreeSitterGrammarAuthoring",
+            dependencies: [
+                "TreeSitterCore",
+                .product(name: "LanguageKit", package: "LanguageKit"),
+            ],
+            swiftSettings: swiftSettings
+        ),
+        // The public standard-languages authoring path: reading the 14 standard
+        // languages' raw registrations and bundled `.scm` query sources. Links
+        // TreeSitterStandardLanguages (and therefore the bundled grammars) and
+        // reaches the `@_spi(GrammarAuthoring)` surface of Core and
+        // StandardLanguages. Kept separate from TreeSitterGrammarAuthoring so
+        // custom-grammar authors do not pull in every bundled grammar.
+        .target(
+            name: "TreeSitterStandardLanguagesAuthoring",
             dependencies: [
                 "TreeSitterCore",
                 "TreeSitterStandardLanguages",
@@ -136,6 +153,7 @@ let package = Package(
                 "TreeSitterCore",
                 "TreeSitterStandardLanguages",
                 "TreeSitterGrammarAuthoring",
+                "TreeSitterStandardLanguagesAuthoring",
                 "TreeSitterDiagnostics",
                 "TreeSitterTestSupport",
             ],

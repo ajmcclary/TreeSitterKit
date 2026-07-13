@@ -1,47 +1,25 @@
 import Foundation
 import LanguageKit
-// The raw registration initializer and the standard registrations' query
-// sources are gated behind `@_spi(GrammarAuthoring)` in TreeSitterCore /
-// TreeSitterStandardLanguages. This module reaches them through that SPI and
-// re-exposes them as a small, deliberate *public* grammar-authoring API, so
-// that plain `TreeSitterCore` / `TreeSitterStandardLanguages` importers never
-// see raw grammar pointers or `.scm` query text.
+// The raw registration initializer is gated behind `@_spi(GrammarAuthoring)` in
+// TreeSitterCore. This module reaches it through that SPI and re-exposes it as a
+// small, deliberate *public* grammar-authoring API, so that plain
+// `TreeSitterCore` importers never see raw grammar pointers.
+//
+// This module depends on TreeSitterCore ONLY — it does NOT link
+// TreeSitterStandardLanguages or any bundled grammar. Custom-grammar authors
+// import this product to build their own registrations without resolving the 14
+// standard grammars. The standard languages' authoring accessors live in the
+// separate `TreeSitterStandardLanguagesAuthoring` product.
 @_spi(GrammarAuthoring) import TreeSitterCore
-@_spi(GrammarAuthoring) import TreeSitterStandardLanguages
 
-/// The bundled highlight and code-map query source (`.scm`) text for one
-/// standard language.
-///
-/// This is the *public* path to the standard languages' query sources: plain
-/// `TreeSitterStandardLanguages` importers get a configured parser and
-/// capability metadata, not query text. Import `TreeSitterGrammarAuthoring`
-/// (this module) to read the raw query sources — e.g. to render, edit, or
-/// re-run them in a query-development tool.
-public struct StandardLanguageQuerySource: Hashable, Sendable {
-    /// The language identity these query sources serve.
-    public let language: LanguageID
-
-    /// Highlight query (`.scm`) text, or `nil` when the language bundles none.
-    public let highlightQuerySource: String?
-
-    /// Code-map query (`.scm`) text, or `nil` when the language bundles none.
-    public let codeMapQuerySource: String?
-
-    /// Creates a query-source value.
-    public init(language: LanguageID, highlightQuerySource: String?, codeMapQuerySource: String?) {
-        self.language = language
-        self.highlightQuerySource = highlightQuerySource
-        self.codeMapQuerySource = codeMapQuerySource
-    }
-}
-
-/// The public grammar-authoring surface for TreeSitterKit.
+/// The public grammar-authoring surface for constructing custom-language
+/// registrations.
 ///
 /// Constructing a ``SyntaxLanguageRegistration`` (its raw grammar-pointer
-/// closure and `.scm` query sources) and reading the standard languages' query
-/// sources are *grammar-authoring* concerns. TreeSitterKit keeps them out of
-/// the stable `TreeSitterCore` / `TreeSitterStandardLanguages` products; this
-/// module is the single public path to them.
+/// closure and `.scm` query sources) is a *grammar-authoring* concern.
+/// TreeSitterKit keeps it out of the stable `TreeSitterCore` product; this
+/// module is the single public path to it. Because it depends only on
+/// TreeSitterCore, importing it does not pull in the standard grammars.
 public enum GrammarAuthoring {
     /// Builds a custom-language registration from a raw grammar-pointer closure
     /// and optional query sources.
@@ -77,33 +55,5 @@ public enum GrammarAuthoring {
             toleratesHighlightQueryFailure: toleratesHighlightQueryFailure,
             usesLightweightCodeMapExtraction: usesLightweightCodeMapExtraction
         )
-    }
-
-    /// The 14 standard-language registrations, with their raw grammar pointers
-    /// and bundled query sources.
-    ///
-    /// Most consumers should prefer ``SyntaxParser/standard(limits:)`` — this
-    /// returns the raw registrations for callers assembling a custom parser
-    /// (e.g. combining the standard languages with additional custom ones).
-    ///
-    /// - Throws: the standard-languages bundle error when a query resource is
-    ///   missing or unreadable.
-    public static func standardRegistrations() throws -> [SyntaxLanguageRegistration] {
-        try StandardSyntaxLanguages.registrations()
-    }
-
-    /// The bundled highlight and code-map query sources for every standard
-    /// language, in the standard-language declaration order.
-    ///
-    /// - Throws: the standard-languages bundle error when a query resource is
-    ///   missing or unreadable.
-    public static func standardLanguageQuerySources() throws -> [StandardLanguageQuerySource] {
-        try StandardSyntaxLanguages.registrations().map {
-            StandardLanguageQuerySource(
-                language: $0.language,
-                highlightQuerySource: $0.highlightQuerySource,
-                codeMapQuerySource: $0.codeMapQuerySource
-            )
-        }
     }
 }

@@ -27,12 +27,18 @@ diagnostics are opt-in via their own products.
   Ruby): builds a configured `SyntaxParser` via `SyntaxParser.standard()` and
   exposes their capability metadata. Highlight/code-map query text is bundled
   as SwiftPM resources but is **not** part of this product's public surface.
-- **TreeSitterGrammarAuthoring** — the public path to *authoring* concerns:
-  constructing custom `SyntaxLanguageRegistration`s (raw grammar-pointer
-  closures) via `GrammarAuthoring.makeRegistration`, and reading the standard
-  languages' bundled `.scm` query sources via
-  `GrammarAuthoring.standardLanguageQuerySources()` /
-  `GrammarAuthoring.standardRegistrations()`.
+- **TreeSitterGrammarAuthoring** — the public path to *custom* grammar
+  authoring: constructing custom `SyntaxLanguageRegistration`s (raw
+  grammar-pointer closures) via `GrammarAuthoring.makeRegistration`. Depends on
+  **TreeSitterCore only** — importing it does *not* resolve or link the 14
+  bundled grammars, so custom-grammar authors stay lightweight.
+- **TreeSitterStandardLanguagesAuthoring** — the public path to the standard
+  languages' *authoring* surface: reading their bundled `.scm` query sources via
+  `StandardLanguagesAuthoring.standardLanguageQuerySources()` and their raw
+  registrations via `StandardLanguagesAuthoring.standardRegistrations()`. Links
+  **TreeSitterStandardLanguages** (and therefore the bundled grammars); kept
+  separate from TreeSitterGrammarAuthoring so custom-grammar authors are not
+  forced to resolve every standard grammar.
 - **TreeSitterDiagnostics** — the public path to ad-hoc query
   compilation/execution and parse-tree inspection: `SyntaxParser.compileQuery`,
   `runQuery` (→ `SyntaxQueryRun`), `syntaxTreeDescription`, and `nodeOutline`.
