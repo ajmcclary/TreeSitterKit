@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: swift build & test
+    # macos-26 is GitHub's current macOS runner generation (Apple unified
+    # macOS/Xcode version numbering around "26" in 2025); at authoring time
+    # its image ships Xcode 26.0.1 through 26.6. This package's manifest
+    # declares `swift-tools-version: 6.3`, which needs a Swift toolchain new
+    # enough to parse that manifest version — newer than some `macos-26`
+    # images may default to. Rather than hardcoding a specific Xcode build
+    # (which would go stale as the image rolls forward, e.g. once a future
+    # Xcode 27 lands), the step below selects the newest Xcode already
+    # installed on the runner. Fallback: if no `/Applications/Xcode_*.app`
+    # is found (e.g. this runs on a non-macOS-26 image), it leaves
+    # `xcode-select` untouched and the build proceeds with the runner's
+    # default toolchain. (The `|| true` inside the substitution matters:
+    # Actions runs steps with `bash -eo pipefail`, so a non-matching glob
+    # would otherwise abort the step at the assignment, before the
+    # fallback branch is reached.)
+    runs-on: macos-26
+    # No timeout override, matrix, or dependency caching here by design
+    # (kept minimal); note this job is inherently slower than a typical
+    # SwiftPM build because `swift test` compiles 14 vendored tree-sitter
+    # grammar C targets from source (no prebuilt binaries) before running
+    # TreeSitterKitTests — expect several minutes, not seconds.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Select newest available Xcode
+        run: |
+          latest="$( (ls -d /Applications/Xcode_*.app 2>/dev/null || true) | sort -V | tail -n1)"
+          if [ -n "$latest" ]; then
+            sudo xcode-select -s "$latest"
+          else
+            echo "No /Applications/Xcode_*.app found; keeping the runner's default toolchain"
+          fi
+          xcodebuild -version
+          swift --version
+
+      - name: swift build
+        run: swift build
+
+      - name: swift test
+        run: swift test
