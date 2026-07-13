@@ -87,6 +87,12 @@ objects under clean SwiftPM resolutions; the `TreeSitterKitScannerSupport`
 target carries copies of just those scanner sources (see
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)).
 
+**Hazard for consumers:** if your app compiles its own copies of the JS/Python
+external scanners (e.g. via a direct grammar-package dependency) while also
+linking `TreeSitterStandardLanguages`, the linker will hit duplicate
+`tree_sitter_{javascript,python}_external_scanner_*` symbols. Drop your own
+copies and rely on `TreeSitterKitScannerSupport`'s instead.
+
 ## License
 
 MIT (see [`LICENSE`](LICENSE)). Bundled grammar attribution and license
