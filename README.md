@@ -131,6 +131,19 @@ linking `TreeSitterStandardLanguages`, the linker will hit duplicate
 `tree_sitter_{javascript,python}_external_scanner_*` symbols. Drop your own
 copies and rely on `TreeSitterKitScannerSupport`'s instead.
 
+**Consume by revision, not by version.** SwiftPM rejects a stable-version
+dependency on any package whose own dependencies are revision-pinned, and
+TreeSitterKit's grammar pins are deliberately exact revisions (see above). So
+`.package(url: …, from: "0.1.0")` will fail to resolve; depend on an exact
+revision instead — release tags like `0.1.0` mark the commits to pin:
+
+```swift
+.package(
+    url: "https://github.com/ajmcclary/TreeSitterKit.git",
+    revision: "b6f181766b48c7416d50874ae0a84af333ad0097"  // tag 0.1.0
+)
+```
+
 ## License
 
 MIT (see [`LICENSE`](LICENSE)). Bundled grammar attribution and license
