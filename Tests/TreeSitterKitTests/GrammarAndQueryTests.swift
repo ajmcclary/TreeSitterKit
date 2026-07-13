@@ -1,8 +1,12 @@
 import Foundation
 import LanguageKit
 import Testing
-import TreeSitterCore
-import TreeSitterStandardLanguages
+// This suite pins the raw standard registrations (grammar pointers + `.scm`
+// query sources), which now live behind `@_spi(GrammarAuthoring)`. Ad-hoc
+// query compilation and tree descriptions live in `TreeSitterDiagnostics`.
+@_spi(GrammarAuthoring) import TreeSitterCore
+@_spi(GrammarAuthoring) import TreeSitterStandardLanguages
+import TreeSitterDiagnostics
 import TreeSitterTestSupport
 
 /// Every supported grammar loads and parses; every bundled query compiles.

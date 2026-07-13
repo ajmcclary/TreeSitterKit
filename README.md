@@ -11,14 +11,31 @@ appears in any public signature. Language identity comes from
 
 ## Products
 
-- **TreeSitterCore** — the parsing engine: `actor SyntaxParser`,
-  `SyntaxCapture`, `SyntaxTreeSummary`, `SyntaxLanguageRegistration`,
-  `SyntaxInputLimits`, typed `SyntaxParserError`. Depends only on LanguageKit
-  and SwiftTreeSitter; knows no grammars.
-- **TreeSitterStandardLanguages** — registrations for the 14 languages
-  RepoPrompt ships (Swift, JavaScript, TypeScript, TSX, Python, Go, Rust, C,
-  C++, Java, C#, Dart, PHP, Ruby), with their highlight and code-map query
-  text bundled as SwiftPM resources.
+The API is split so that a regular consumer imports only the first two
+products and sees a clean parsing surface — no raw grammar pointers, no `.scm`
+query text, no ad-hoc-query or tree-dump debug tools. Grammar authoring and
+diagnostics are opt-in via their own products.
+
+- **TreeSitterCore** — the stable parsing engine: `actor SyntaxParser`
+  (construction, captures, summaries, capability lookups), `SyntaxCapture`,
+  `SyntaxTreeSummary`, `SyntaxInputLimits`, typed `SyntaxParserError`, and the
+  `SyntaxLanguageRegistration` type (its raw grammar/query members are
+  authoring-only, gated behind `@_spi(GrammarAuthoring)`). Depends only on
+  LanguageKit and SwiftTreeSitter; knows no grammars.
+- **TreeSitterStandardLanguages** — the 14 languages RepoPrompt ships (Swift,
+  JavaScript, TypeScript, TSX, Python, Go, Rust, C, C++, Java, C#, Dart, PHP,
+  Ruby): builds a configured `SyntaxParser` via `SyntaxParser.standard()` and
+  exposes their capability metadata. Highlight/code-map query text is bundled
+  as SwiftPM resources but is **not** part of this product's public surface.
+- **TreeSitterGrammarAuthoring** — the public path to *authoring* concerns:
+  constructing custom `SyntaxLanguageRegistration`s (raw grammar-pointer
+  closures) via `GrammarAuthoring.makeRegistration`, and reading the standard
+  languages' bundled `.scm` query sources via
+  `GrammarAuthoring.standardLanguageQuerySources()` /
+  `GrammarAuthoring.standardRegistrations()`.
+- **TreeSitterDiagnostics** — the public path to ad-hoc query
+  compilation/execution and parse-tree inspection: `SyntaxParser.compileQuery`,
+  `runQuery` (→ `SyntaxQueryRun`), `syntaxTreeDescription`, and `nodeOutline`.
 - **TreeSitterTestSupport** — representative per-language source fixtures for
   consumers' tests.
 
@@ -61,18 +78,39 @@ runs.
 
 ## Custom languages
 
-`TreeSitterCore` is grammar-agnostic. Register your own language by supplying
-a `SyntaxLanguageRegistration` whose `grammar` closure returns the generated
+`TreeSitterCore` is grammar-agnostic. Registration construction is a
+grammar-authoring concern, so it lives in the **TreeSitterGrammarAuthoring**
+product. Build a registration whose `grammar` closure returns the generated
 `tree_sitter_<lang>()` pointer erased to `UnsafeRawPointer`:
 
 ```swift
-let registration = SyntaxLanguageRegistration(
+import TreeSitterCore
+import TreeSitterGrammarAuthoring
+
+let registration = GrammarAuthoring.makeRegistration(
     language: LanguageID("mylang"),
     grammar: { tree_sitter_mylang().map(UnsafeRawPointer.init) },
     highlightQuerySource: highlightsSCM,
     codeMapQuerySource: nil
 )
 let parser = SyntaxParser(registrations: [registration])
+```
+
+## Diagnostics
+
+Ad-hoc query and parse-tree inspection tools are opt-in via the
+**TreeSitterDiagnostics** product:
+
+```swift
+import TreeSitterCore
+import TreeSitterStandardLanguages
+import TreeSitterDiagnostics
+
+let parser = try SyntaxParser.standard()
+try await parser.compileQuery(querySCM, language: .swift)   // validate a query
+let run = try await parser.runQuery(querySCM, on: source, language: .swift)
+let tree = try await parser.syntaxTreeDescription(of: source, language: .swift)
+let outline = try await parser.nodeOutline(of: source, language: .swift)
 ```
 
 ## Dependency pins

@@ -21,6 +21,8 @@ let package = Package(
     products: [
         .library(name: "TreeSitterCore", targets: ["TreeSitterCore"]),
         .library(name: "TreeSitterStandardLanguages", targets: ["TreeSitterStandardLanguages"]),
+        .library(name: "TreeSitterGrammarAuthoring", targets: ["TreeSitterGrammarAuthoring"]),
+        .library(name: "TreeSitterDiagnostics", targets: ["TreeSitterDiagnostics"]),
         .library(name: "TreeSitterTestSupport", targets: ["TreeSitterTestSupport"]),
     ],
     dependencies: [
@@ -93,6 +95,33 @@ let package = Package(
             ],
             swiftSettings: swiftSettings
         ),
+        // Ad-hoc query compilation/execution and parse-tree inspection
+        // (RepoPrompt's debug tools). Kept out of TreeSitterCore's stable
+        // surface; reaches Core's grammar/parse primitives via
+        // `@_spi(Diagnostics)`. Imports SwiftTreeSitter, but exposes no
+        // SwiftTreeSitter type publicly.
+        .target(
+            name: "TreeSitterDiagnostics",
+            dependencies: [
+                "TreeSitterCore",
+                .product(name: "LanguageKit", package: "LanguageKit"),
+                .product(name: "SwiftTreeSitter", package: "SwiftTreeSitter"),
+            ],
+            swiftSettings: swiftSettings
+        ),
+        // The public grammar-authoring path: constructing custom-language
+        // registrations (raw grammar-pointer closures) and reading the
+        // standard languages' bundled `.scm` query sources. Reaches the
+        // `@_spi(GrammarAuthoring)` surface of Core and StandardLanguages.
+        .target(
+            name: "TreeSitterGrammarAuthoring",
+            dependencies: [
+                "TreeSitterCore",
+                "TreeSitterStandardLanguages",
+                .product(name: "LanguageKit", package: "LanguageKit"),
+            ],
+            swiftSettings: swiftSettings
+        ),
         .target(
             name: "TreeSitterTestSupport",
             dependencies: [
@@ -106,6 +135,8 @@ let package = Package(
             dependencies: [
                 "TreeSitterCore",
                 "TreeSitterStandardLanguages",
+                "TreeSitterGrammarAuthoring",
+                "TreeSitterDiagnostics",
                 "TreeSitterTestSupport",
             ],
             swiftSettings: swiftSettings

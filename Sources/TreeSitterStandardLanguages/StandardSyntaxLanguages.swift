@@ -1,6 +1,11 @@
 import Foundation
 import LanguageKit
-import TreeSitterCore
+// `@_spi(GrammarAuthoring)` is required to construct `SyntaxLanguageRegistration`
+// values (the raw grammar-pointer initializer is gated behind that SPI). This
+// keeps registration construction out of the stable `TreeSitterCore` surface
+// while letting this target — and the `TreeSitterGrammarAuthoring` product —
+// assemble the standard registrations.
+@_spi(GrammarAuthoring) import TreeSitterCore
 
 import TreeSitterC
 import TreeSitterCPP
@@ -52,6 +57,14 @@ public enum StandardSyntaxLanguages {
     /// - Throws: ``StandardSyntaxLanguagesError`` when a bundled query
     ///   resource is missing or unreadable (indicates a corrupted install;
     ///   cannot happen in an intact package checkout).
+    ///
+    /// Gated behind `@_spi(GrammarAuthoring)`: these registrations carry raw
+    /// grammar pointers and `.scm` query source text, which are grammar-
+    /// authoring surface, not part of the stable parsing API. Regular
+    /// consumers build a parser via ``SyntaxParser/standard(limits:)``; the
+    /// `TreeSitterGrammarAuthoring` product re-exposes this (and the query
+    /// sources) publicly.
+    @_spi(GrammarAuthoring)
     public static func registrations() throws -> [SyntaxLanguageRegistration] {
         // RepoPrompt behavior notes, preserved here:
         // - TypeScript and TSX share the same highlight and code-map query

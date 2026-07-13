@@ -3,6 +3,7 @@ import LanguageKit
 import Testing
 import TreeSitterCore
 import TreeSitterStandardLanguages
+import TreeSitterDiagnostics
 import TreeSitterTestSupport
 
 /// Representative snippets produce non-empty highlight and code-map captures

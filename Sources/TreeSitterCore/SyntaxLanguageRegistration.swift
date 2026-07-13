@@ -9,21 +9,32 @@ import LanguageKit
 /// tree-sitter or SwiftTreeSitter type appears in any public signature.
 /// Grammar pointers produced by generated `tree_sitter_<id>()` functions are
 /// pointers to immutable static data and are safe to share across threads.
+///
+/// ## Construction is a grammar-authoring concern
+///
+/// Building a registration (the raw grammar-pointer closure and the `.scm`
+/// query sources) is *grammar authoring*, not ordinary parsing, so the
+/// initializer and the raw grammar/query members are gated behind
+/// `@_spi(GrammarAuthoring)`. Regular consumers construct a parser from
+/// ``SyntaxParser/standard(limits:)`` (or the `TreeSitterGrammarAuthoring`
+/// product's public helpers) and never touch these members. The type itself
+/// stays public so that ``SyntaxParser/init(registrations:limits:)`` remains
+/// callable (e.g. with an empty array).
 public struct SyntaxLanguageRegistration: Sendable {
     /// The language identity (from LanguageKit) this registration serves.
     public let language: LanguageID
 
     /// Returns the grammar's `const TSLanguage *` erased to a raw pointer,
     /// or `nil` when the grammar is unavailable.
-    public let grammar: @Sendable () -> UnsafeRawPointer?
+    @_spi(GrammarAuthoring) public let grammar: @Sendable () -> UnsafeRawPointer?
 
     /// Query source (`.scm` text) used for highlighting, or `nil` when the
     /// language has no highlight query.
-    public let highlightQuerySource: String?
+    @_spi(GrammarAuthoring) public let highlightQuerySource: String?
 
     /// Query source (`.scm` text) used for code-map extraction, or `nil`
     /// when the language has no code-map query.
-    public let codeMapQuerySource: String?
+    @_spi(GrammarAuthoring) public let codeMapQuerySource: String?
 
     /// When `true`, a highlight-query compilation failure yields an empty
     /// highlight result instead of throwing (RepoPrompt tolerated this for
@@ -48,7 +59,7 @@ public struct SyntaxLanguageRegistration: Sendable {
     ///     failures degrade to an empty result instead of throwing.
     ///   - usesLightweightCodeMapExtraction: Whether consumers should use
     ///     lightweight (raw-text) code-map extraction for this language.
-    public init(
+    @_spi(GrammarAuthoring) public init(
         language: LanguageID,
         grammar: @escaping @Sendable () -> UnsafeRawPointer?,
         highlightQuerySource: String?,

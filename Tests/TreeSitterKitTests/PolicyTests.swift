@@ -3,6 +3,7 @@ import LanguageKit
 import Testing
 import TreeSitterCore
 import TreeSitterStandardLanguages
+import TreeSitterDiagnostics
 
 /// Typed errors for unsupported languages, input-size limits, and the
 /// language-support lookups RepoPrompt's call sites rely on.
