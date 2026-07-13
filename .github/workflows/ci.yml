@@ -39,6 +39,22 @@ jobs:
         with:
           fetch-depth: 1
 
+      # The sibling ajmcclary/* dependency repos (LanguageKit) are private;
+      # the default GITHUB_TOKEN is scoped to this repository only, so
+      # SwiftPM's git clones need a read-scoped fine-grained PAT, stored as
+      # the WORKSPACE_READ_PAT repo secret. Guarded so forks without the
+      # secret still run (and fail only at the clone, as before).
+      - name: Authenticate git for private sibling repos
+        env:
+          WORKSPACE_READ_PAT: ${{ secrets.WORKSPACE_READ_PAT }}
+        run: |
+          if [ -n "$WORKSPACE_READ_PAT" ]; then
+            git config --global url."https://x-access-token:${WORKSPACE_READ_PAT}@github.com/ajmcclary/".insteadOf "https://github.com/ajmcclary/"
+            echo "Configured authenticated clone for github.com/ajmcclary"
+          else
+            echo "WORKSPACE_READ_PAT not set; private sibling clones will fail"
+          fi
+
       - name: Select newest available Xcode
         run: |
           latest="$( (ls -d /Applications/Xcode_*.app 2>/dev/null || true) | sort -V | tail -n1)"
