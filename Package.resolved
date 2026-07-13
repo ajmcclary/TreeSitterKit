@@ -1,13 +1,13 @@
 {
-  "originHash" : "724ea9acda08e137e6eb7af7dc557911b46b154acf8a1761399f7fc855661b51",
+  "originHash" : "d374a545b42e8e883eeaf097fd3e346d191b4dbd32274d7a911629b07d32b10f",
   "pins" : [
     {
       "identity" : "languagekit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ajmcclary/LanguageKit.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "a170b8e320188ff8bb322070e024dabfae200bcd"
+        "revision" : "b4dadf4963e50bc83728b951104d0135663daad4",
+        "version" : "0.1.0"
       }
     },
     {

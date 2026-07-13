@@ -26,7 +26,7 @@ let package = Package(
         .library(name: "TreeSitterTestSupport", targets: ["TreeSitterTestSupport"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/ajmcclary/LanguageKit.git", branch: "main"),
+        .package(url: "https://github.com/ajmcclary/LanguageKit.git", .upToNextMinor(from: "0.1.0")),
         // Pinned exactly as RepoPrompt pins it (the proven implementation this
         // package was extracted from). Upgrading to the maintained
         // tree-sitter/swift-tree-sitter upstream is a deliberate, separate change.
