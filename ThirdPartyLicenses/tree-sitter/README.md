@@ -1,19 +1,26 @@
 # Tree-sitter Attribution Bundle
 
-TreeSitterKit links Tree-sitter grammar package products and the
-`SwiftTreeSitter` wrapper/runtime through its SwiftPM dependency graph. This
-directory contains curated license copies for those components, carried over
-from RepoPrompt (the application this package was extracted from) and kept in
-sync with TreeSitterKit's `Package.swift` pins.
+TreeSitterKit **vendors** the Tree-sitter grammar sources directly (see
+[`../../Sources/Grammars/VENDORED.md`](../../Sources/Grammars/VENDORED.md)) and
+links the `SwiftTreeSitter` wrapper/runtime through a single `exact: "0.8.0"`
+version pin. This directory contains curated license copies for those
+components, carried over from RepoPrompt (the application this package was
+extracted from) and kept in sync with the vendored revisions.
 
-All grammar dependencies use source-preserving SwiftPM revision pins: the
-selected upstream snapshots retain generated parser source and their license
-files. A source-preserving pin improves reproducibility, but package
-dependencies still require attribution when distributed.
+Each grammar is vendored at a fixed upstream revision; the generated parser
+source and the upstream license file are preserved byte-for-byte (each grammar's
+`LICENSE` also lives next to its vendored sources under
+`Sources/Grammars/<Module>/`). Vendoring improves reproducibility and makes the
+package semver-consumable, but the sources still require attribution when
+distributed.
 
 ## Grammar packages
 
-| Grammar | Upstream repository | Exact revision | SwiftPM product (modules where useful) | License copy |
+The revisions below are the *vendored* revisions (identical to the former
+dependency pins); the "vendored target" column names the C target(s) under
+`Sources/Grammars/`.
+
+| Grammar | Upstream repository | Vendored revision | Vendored target (modules where useful) | License copy |
 | --- | --- | --- | --- | --- |
 | C | <https://github.com/tree-sitter/tree-sitter-c> | `3efee11f784605d44623d7dadd6cd12a0f73ea92` | `TreeSitterC` | [`LICENSE-tree-sitter-max-brunsfeld-2014.txt`](LICENSE-tree-sitter-max-brunsfeld-2014.txt) |
 | C# | <https://github.com/tree-sitter/tree-sitter-c-sharp.git> | `b27b091bfdc5f16d0ef76421ea5609c82a57dff0` | `TreeSitterCSharp` | [`LICENSE-tree-sitter-c-sharp.txt`](LICENSE-tree-sitter-c-sharp.txt) |
@@ -33,13 +40,14 @@ The C, C++, Go, and JavaScript snapshots contain identical MIT license text,
 so they intentionally share one copy
 (`LICENSE-tree-sitter-max-brunsfeld-2014.txt`).
 
-## JavaScript and Python scanner linker compatibility sources
+## JavaScript and Python external scanners
 
-See the "JavaScript and Python scanner linker compatibility sources" section
-of the repository-root [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md)
-for the `Sources/TreeSitterKitScannerSupport` target's provenance.
-[`scanner-support.sha256`](scanner-support.sha256) records the copied-file
-checksums.
+The JavaScript and Python external scanners are now vendored as each grammar's
+real `src/scanner.c` (compiled once inside its own target), replacing the former
+`TreeSitterKitScannerSupport` shim. See the "JavaScript and Python external
+scanners" section of the repository-root
+[`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) and
+[`../../Sources/Grammars/VENDORED.md`](../../Sources/Grammars/VENDORED.md).
 
 ## Swift wrapper, embedded runtime, and ICU subset
 

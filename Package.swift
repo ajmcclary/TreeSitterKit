@@ -5,6 +5,26 @@ let swiftSettings: [SwiftSetting] = [
     .enableExperimentalFeature("StrictConcurrency")
 ]
 
+/// Builds a vendored tree-sitter grammar C target.
+///
+/// Every vendored grammar lives at `Sources/Grammars/<name>/` with the same
+/// on-disk shape: `src/parser.c` (+ `src/scanner.c` when the grammar has an
+/// external scanner), the private `src/tree_sitter/*.h` headers reached via a
+/// `src` header search path, and the public binding header under `include/`.
+/// The preserved upstream `LICENSE` is excluded from compilation.
+func vendoredGrammar(_ name: String, scanner: Bool = true) -> Target {
+    var sources = ["src/parser.c"]
+    if scanner { sources.append("src/scanner.c") }
+    return .target(
+        name: name,
+        path: "Sources/Grammars/\(name)",
+        exclude: ["LICENSE"],
+        sources: sources,
+        publicHeadersPath: "include",
+        cSettings: [.headerSearchPath("src")]
+    )
+}
+
 let package = Package(
     name: "TreeSitterKit",
     // Floor: SwiftTreeSitter 0.8.0 and the grammar packages declare no
@@ -31,23 +51,16 @@ let package = Package(
         // Pinned exactly as RepoPrompt pins it (the proven implementation this
         // package was extracted from). Upgrading to the maintained
         // tree-sitter/swift-tree-sitter upstream is a deliberate, separate change.
+        // `exact:` is a version requirement — it does NOT prevent this package
+        // from being consumed `from:` a semantic version.
         .package(url: "https://github.com/ChimeHQ/SwiftTreeSitter.git", exact: "0.8.0"),
-        // Grammar pins are byte-identical to RepoPrompt's project.pbxproj /
-        // Package.resolved revisions. Do not upgrade casually: query text and
-        // node-type names are grammar-revision-sensitive.
-        .package(url: "https://github.com/tree-sitter/tree-sitter-c", revision: "3efee11f784605d44623d7dadd6cd12a0f73ea92"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-c-sharp.git", revision: "b27b091bfdc5f16d0ef76421ea5609c82a57dff0"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-cpp", revision: "e5cea0ec884c5c3d2d1e41a741a66ce13da4d945"),
-        .package(url: "https://github.com/UserNobody14/tree-sitter-dart", revision: "80e23c07b64494f7e21090bb3450223ef0b192f4"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-go", revision: "c350fa54d38af725c40d061a602ee3205ef1e072"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-java", revision: "e10607b45ff745f5f876bfa3e94fbcc6b44bdc11"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-javascript", revision: "39798e26b6d4dbcee8e522b8db83f8b2df33a5ea"),
-        .package(url: "https://github.com/provencher/tree-sitter-php", revision: "0a99deca13c4af1fb9adcb03c958bfc9f4c740a9"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-python", revision: "c5fca1a186e8e528115196178c28eefa8d86b0b0"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-ruby", revision: "7a010836b74351855148818d5cb8170dc4df8e6a"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-rust", revision: "2eaf126458a4d6a69401089b6ba78c5e5d6c1ced"),
-        .package(url: "https://github.com/alex-pinkus/tree-sitter-swift", revision: "9253825dd2570430b53fa128cbb40cb62498e75d"),
-        .package(url: "https://github.com/tree-sitter/tree-sitter-typescript", revision: "75b3874edb2dc714fb1fd77a32013d0f8699989f"),
+        // The 14 standard grammars are VENDORED (their generated C parser and
+        // scanner sources live under Sources/Grammars/, one C target per
+        // grammar product) at the exact upstream revisions recorded in
+        // Sources/Grammars/VENDORED.md. There are therefore NO revision- or
+        // branch-pinned dependencies here, which is what makes TreeSitterKit
+        // semver-consumable. Re-vendoring is a deliberate act — see
+        // Sources/Grammars/VENDORED.md for the procedure.
     ],
     targets: [
         .target(
@@ -58,38 +71,67 @@ let package = Package(
             ],
             swiftSettings: swiftSettings
         ),
-        // Compatibility shim carried over from RepoPrompt: clean SwiftPM
-        // resolutions of the exact-pinned JavaScript and Python grammar
-        // packages omit their external-scanner objects (their manifests probe
-        // `src/scanner.c` with a cwd-relative FileManager check that fails
-        // during manifest evaluation), so the required
-        // `tree_sitter_<lang>_external_scanner_*` symbols would be undefined
-        // at link time. This target compiles copies of only the missing
-        // upstream scanner implementations (see THIRD_PARTY_NOTICES.md).
+        // Vendored grammar C targets. Each mirrors exactly what the upstream
+        // grammar SwiftPM package compiled: the generated `src/parser.c` (and
+        // `src/scanner.c` external scanner where the grammar has one), the
+        // private `src/tree_sitter/*.h` headers, and the public Swift binding
+        // header declaring `tree_sitter_<lang>()`. Sources are byte-identical
+        // to the pinned upstream revisions in Sources/Grammars/VENDORED.md.
+        // The JavaScript and Python scanners are now carried here (once, in
+        // their real targets), which is why the old TreeSitterKitScannerSupport
+        // shim is gone. `exclude: ["LICENSE"]` keeps SwiftPM from flagging the
+        // preserved upstream license as an unhandled resource.
+        vendoredGrammar("TreeSitterC", scanner: false),
+        vendoredGrammar("TreeSitterCSharp"),
+        vendoredGrammar("TreeSitterCPP"),
+        vendoredGrammar("TreeSitterDart"),
+        vendoredGrammar("TreeSitterGo", scanner: false),
+        vendoredGrammar("TreeSitterJava", scanner: false),
+        vendoredGrammar("TreeSitterJavaScript"),
+        vendoredGrammar("TreeSitterPHP"),
+        vendoredGrammar("TreeSitterPython"),
+        vendoredGrammar("TreeSitterRuby"),
+        vendoredGrammar("TreeSitterRust"),
+        vendoredGrammar("TreeSitterSwift"),
+        // TypeScript and TSX keep their upstream nested layout because their
+        // `scanner.c` includes `../../common/scanner.h` (a scanner shared by
+        // both grammars). Preserving `<lang>/src/` + a sibling `common/` lets
+        // that relative include resolve with no source edit.
         .target(
-            name: "TreeSitterKitScannerSupport",
+            name: "TreeSitterTypeScript",
+            path: "Sources/Grammars/TreeSitterTypeScript",
+            exclude: ["LICENSE"],
+            sources: ["typescript/src/parser.c", "typescript/src/scanner.c"],
             publicHeadersPath: "include",
-            cSettings: [.headerSearchPath("include")]
+            cSettings: [.headerSearchPath("typescript/src")]
+        ),
+        .target(
+            name: "TreeSitterTSX",
+            path: "Sources/Grammars/TreeSitterTSX",
+            exclude: ["LICENSE"],
+            sources: ["tsx/src/parser.c", "tsx/src/scanner.c"],
+            publicHeadersPath: "include",
+            cSettings: [.headerSearchPath("tsx/src")]
         ),
         .target(
             name: "TreeSitterStandardLanguages",
             dependencies: [
                 "TreeSitterCore",
-                "TreeSitterKitScannerSupport",
                 .product(name: "LanguageKit", package: "LanguageKit"),
-                .product(name: "TreeSitterC", package: "tree-sitter-c"),
-                .product(name: "TreeSitterCSharp", package: "tree-sitter-c-sharp"),
-                .product(name: "TreeSitterCPP", package: "tree-sitter-cpp"),
-                .product(name: "TreeSitterDart", package: "tree-sitter-dart"),
-                .product(name: "TreeSitterGo", package: "tree-sitter-go"),
-                .product(name: "TreeSitterJava", package: "tree-sitter-java"),
-                .product(name: "TreeSitterJavaScript", package: "tree-sitter-javascript"),
-                .product(name: "TreeSitterPHP", package: "tree-sitter-php"),
-                .product(name: "TreeSitterPython", package: "tree-sitter-python"),
-                .product(name: "TreeSitterRuby", package: "tree-sitter-ruby"),
-                .product(name: "TreeSitterRust", package: "tree-sitter-rust"),
-                .product(name: "TreeSitterSwift", package: "tree-sitter-swift"),
-                .product(name: "TreeSitterTypeScript", package: "tree-sitter-typescript"),
+                "TreeSitterC",
+                "TreeSitterCSharp",
+                "TreeSitterCPP",
+                "TreeSitterDart",
+                "TreeSitterGo",
+                "TreeSitterJava",
+                "TreeSitterJavaScript",
+                "TreeSitterPHP",
+                "TreeSitterPython",
+                "TreeSitterRuby",
+                "TreeSitterRust",
+                "TreeSitterSwift",
+                "TreeSitterTypeScript",
+                "TreeSitterTSX",
             ],
             resources: [
                 .copy("Queries")

@@ -1,44 +1,39 @@
 # Third-Party Notices
 
-## Tree-sitter grammar packages and runtime
+## Tree-sitter grammars (vendored) and runtime
 
-TreeSitterKit links thirteen Tree-sitter grammar SwiftPM packages and the
-`SwiftTreeSitter` wrapper (with its embedded Tree-sitter C runtime) through
-fixed, source-preserving revision pins. Those package dependencies require
-attribution when distributed.
+TreeSitterKit **vendors** thirteen Tree-sitter grammar packages' generated C
+sources (parser and, where present, external scanner) directly into
+[`Sources/Grammars/`](Sources/Grammars/), each at a fixed upstream revision, and
+links the `SwiftTreeSitter` wrapper (with its embedded Tree-sitter C runtime)
+through a single `exact: "0.8.0"` version pin. The vendored grammar sources and
+the `SwiftTreeSitter` package both require attribution when distributed.
 
-The curated [`ThirdPartyLicenses/tree-sitter/`](ThirdPartyLicenses/tree-sitter/)
-bundle maps the directly linked grammar products to their exact upstream
-repositories and revisions, and includes full license copies for the grammar
-packages, `SwiftTreeSitter`, its embedded Tree-sitter runtime, and the ICU
-subset notice shipped with that runtime.
+[`Sources/Grammars/VENDORED.md`](Sources/Grammars/VENDORED.md) is the provenance
+manifest: it maps each vendored target to its upstream repository, exact
+revision, and license, records that every vendored file is byte-identical to the
+pinned upstream source (checksums in
+[`Sources/Grammars/VENDORED.sha256`](Sources/Grammars/VENDORED.sha256)), and
+documents the deliberate re-vendoring procedure. Each grammar's upstream
+`LICENSE` is preserved both next to its vendored sources
+(`Sources/Grammars/<Module>/LICENSE`) and in the curated
+[`ThirdPartyLicenses/tree-sitter/`](ThirdPartyLicenses/tree-sitter/) collection,
+which also holds the `SwiftTreeSitter` wrapper, its embedded Tree-sitter runtime,
+and the ICU subset notice shipped with that runtime.
 
-## JavaScript and Python scanner linker compatibility sources
+## JavaScript and Python external scanners
 
-Clean SwiftPM resolutions of the exact-pinned upstream JavaScript and Python
-grammar packages compile their parser objects but omit their external-scanner
-objects (each package's manifest probes `src/scanner.c` with a cwd-relative
-`FileManager` check that fails during manifest evaluation). TreeSitterKit
-therefore carries a narrow `Sources/TreeSitterKitScannerSupport` C target
-containing copies of only the missing upstream scanner implementations and
-their required helper headers, taken from RepoPrompt's proven
-`TreeSitterScannerSupport` subtree (upstream sources with minimal
-compile-hygiene adjustments: `(void)` prototypes and explicit integer casts).
-The upstream package URLs, revisions, and products remain unchanged.
-
-| TreeSitterKit source path | Upstream snapshot source | Applicable license copy |
-| --- | --- | --- |
-| `Sources/TreeSitterKitScannerSupport/src/javascript/scanner.c` | `tree-sitter-javascript/src/scanner.c` at `39798e26b6d4dbcee8e522b8db83f8b2df33a5ea` | [`LICENSE-tree-sitter-max-brunsfeld-2014.txt`](ThirdPartyLicenses/tree-sitter/LICENSE-tree-sitter-max-brunsfeld-2014.txt) |
-| `Sources/TreeSitterKitScannerSupport/src/python/scanner.c` | `tree-sitter-python/src/scanner.c` at `c5fca1a186e8e528115196178c28eefa8d86b0b0` | [`LICENSE-tree-sitter-python.txt`](ThirdPartyLicenses/tree-sitter/LICENSE-tree-sitter-python.txt) |
-| `Sources/TreeSitterKitScannerSupport/include/tree_sitter/parser.h` | Byte-identical in both exact snapshots above | Same grammar license copies above |
-| `Sources/TreeSitterKitScannerSupport/include/tree_sitter/array.h` | `tree-sitter-python/src/tree_sitter/array.h` at `c5fca1a186e8e528115196178c28eefa8d86b0b0` | [`LICENSE-tree-sitter-python.txt`](ThirdPartyLicenses/tree-sitter/LICENSE-tree-sitter-python.txt) |
-| `Sources/TreeSitterKitScannerSupport/include/tree_sitter/alloc.h` | `tree-sitter-python/src/tree_sitter/alloc.h` at `c5fca1a186e8e528115196178c28eefa8d86b0b0` | [`LICENSE-tree-sitter-python.txt`](ThirdPartyLicenses/tree-sitter/LICENSE-tree-sitter-python.txt) |
-
-[`ThirdPartyLicenses/tree-sitter/scanner-support.sha256`](ThirdPartyLicenses/tree-sitter/scanner-support.sha256)
-records the copied-file checksums. Remove this compatibility target, its
-checksum file, and this documentation section together only after validated
-upstream revisions or SwiftPM behavior compile the scanner objects directly
-from the dependency products.
+Earlier revisions of this package carried a separate
+`TreeSitterKitScannerSupport` C target with copies of only the JavaScript and
+Python external scanners, because clean SwiftPM resolutions of those two
+*grammar packages* dropped their scanner objects (their manifests probed
+`src/scanner.c` with a cwd-relative `FileManager` check that failed during
+manifest evaluation). Now that the grammars are vendored, each grammar's real
+`src/scanner.c` is compiled exactly once inside its own target
+(`Sources/Grammars/TreeSitterJavaScript/src/scanner.c`,
+`Sources/Grammars/TreeSitterPython/src/scanner.c`, and so on), so the shim and
+its checksum file are gone. There is exactly one definition of each
+`tree_sitter_<lang>_external_scanner_*` symbol.
 
 ## Query text provenance
 
@@ -48,5 +43,5 @@ of RepoPrompt's shipping query strings. Several of those queries were
 originally derived from the corresponding grammar repositories' published
 `queries/highlights.scm` files (e.g. the PHP highlight query is based on
 tree-sitter-php's `highlights.scm`); the grammar license copies in
-[`ThirdPartyLicenses/tree-sitter/`](ThirdPartyLicenses/tree-sitter/) cover
-that material.
+[`ThirdPartyLicenses/tree-sitter/`](ThirdPartyLicenses/tree-sitter/) and
+[`Sources/Grammars/`](Sources/Grammars/) cover that material.

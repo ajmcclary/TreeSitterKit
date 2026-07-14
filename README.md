@@ -119,34 +119,44 @@ let tree = try await parser.syntaxTreeDescription(of: source, language: .swift)
 let outline = try await parser.nodeOutline(of: source, language: .swift)
 ```
 
-## Dependency pins
+## Dependency pins and vendored grammars
 
-SwiftTreeSitter is pinned exactly at `ChimeHQ/SwiftTreeSitter@0.8.0` and every
-grammar package at the exact revision RepoPrompt ships — see `Package.swift`.
-Query text and node-type names are grammar-revision-sensitive; do not upgrade
-pins without re-validating the bundled queries.
+TreeSitterKit has exactly **two** external dependencies: `LanguageKit`
+(`.upToNextMinor(from: "0.1.0")`) and `ChimeHQ/SwiftTreeSitter` pinned
+`exact: "0.8.0"`. An `exact:` pin is a *version* requirement, so it does not
+block semver consumption.
 
-The pinned JavaScript and Python grammar packages omit their external-scanner
-objects under clean SwiftPM resolutions; the `TreeSitterKitScannerSupport`
-target carries copies of just those scanner sources (see
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)).
+The 14 standard-language grammars are **vendored**: their generated C parser and
+external-scanner sources live under
+[`Sources/Grammars/`](Sources/Grammars/), one C target per grammar, each
+byte-identical to a fixed upstream revision. There are no revision- or
+branch-pinned SwiftPM dependencies. Provenance, checksums, and the deliberate
+re-vendoring procedure are in
+[`Sources/Grammars/VENDORED.md`](Sources/Grammars/VENDORED.md). Query text and
+node-type names are grammar-revision-sensitive; re-validate the bundled queries
+(the test suite does) whenever you re-vendor a grammar.
 
-**Hazard for consumers:** if your app compiles its own copies of the JS/Python
-external scanners (e.g. via a direct grammar-package dependency) while also
-linking `TreeSitterStandardLanguages`, the linker will hit duplicate
-`tree_sitter_{javascript,python}_external_scanner_*` symbols. Drop your own
-copies and rely on `TreeSitterKitScannerSupport`'s instead.
+Each grammar's real `src/scanner.c` (including JavaScript's and Python's) is now
+compiled exactly once inside its own vendored target — the former
+`TreeSitterKitScannerSupport` shim is gone.
 
-**Consume by revision, not by version.** SwiftPM rejects a stable-version
-dependency on any package whose own dependencies are revision-pinned, and
-TreeSitterKit's grammar pins are deliberately exact revisions (see above). So
-`.package(url: …, from: "0.1.0")` will fail to resolve; depend on an exact
-revision instead — release tags like `0.1.0` mark the commits to pin:
+**Hazard for consumers:** if your app *also* links a grammar package directly
+(e.g. a `tree-sitter-javascript` SwiftPM dependency) alongside
+`TreeSitterStandardLanguages`, the linker will hit duplicate
+`tree_sitter_<lang>()` / `tree_sitter_<lang>_external_scanner_*` symbols — the
+grammar would be defined both by TreeSitterKit's vendored target and by your
+direct dependency. Depend on TreeSitterKit's grammar targets rather than
+carrying a second copy.
+
+**Consumable by version.** Because TreeSitterKit no longer has any
+revision-pinned dependencies, SwiftPM will resolve a stable-version dependency on
+it. The workspace controller tags this vendoring release `0.2.0`; consume it
+with a semantic-version requirement:
 
 ```swift
 .package(
     url: "https://github.com/ajmcclary/TreeSitterKit.git",
-    revision: "b6f181766b48c7416d50874ae0a84af333ad0097"  // tag 0.1.0
+    from: "0.2.0"
 )
 ```
 
