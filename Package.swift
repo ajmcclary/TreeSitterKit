@@ -1,7 +1,17 @@
 // swift-tools-version: 6.3
 import PackageDescription
 
+/// Swift settings applied to every Swift target and test target in this package.
+///
+/// The language mode is declared PER TARGET rather than package-wide (the former
+/// `swiftLanguageModes: [.v6]` argument) so that each target's Swift 6 compliance
+/// is independently checkable — a target cannot silently inherit the mode, and a
+/// target added without these settings is visibly missing them.
+///
+/// The vendored tree-sitter grammar C targets are deliberately NOT given these
+/// settings: a C target takes no Swift language mode.
 let swiftSettings: [SwiftSetting] = [
+    .swiftLanguageMode(.v6),
     .enableExperimentalFeature("StrictConcurrency")
 ]
 
@@ -27,16 +37,35 @@ func vendoredGrammar(_ name: String, scanner: Bool = true) -> Target {
 
 let package = Package(
     name: "TreeSitterKit",
-    // Floor: SwiftTreeSitter 0.8.0 and the grammar packages declare no
-    // meaningful platform floor (see docs/architecture/platform-matrix.md in
-    // the CodeEditor superproject); the binding floor is TreeSitterKit's own
-    // use of Swift concurrency (actor), which requires these OS versions.
+    // Floor: raised from macOS 10.15 / iOS 13 to macOS 27.0 / iOS 27.0 by the
+    // workspace-wide Swift 6 language-mode migration (toolchain: Apple Swift 6.4,
+    // Xcode 27.0). SwiftTreeSitter 0.8.0 and the vendored grammar C targets impose
+    // no floor of their own; this floor is the workspace's, not a technical
+    // minimum of the bindings. The string form is used deliberately —
+    // `.macOS(.v27)` requires swift-tools-version 6.4 and this manifest is 6.3.
+    //
+    // tvOS, watchOS and visionOS are RETAINED, each raised to 27.0 and each
+    // backed by a clean build rather than by inheritance from the old floors:
+    //
+    //   xcodebuild -scheme TreeSitterKit-Package \
+    //     -destination 'generic/platform=<tvOS|watchOS|visionOS>' build
+    //
+    // was run with all five declarations present (a build run WITHOUT the
+    // declaration proves nothing — SwiftPM then supplies a default floor, so
+    // the build can succeed while the declared floor stays untested). All three
+    // reported BUILD SUCCEEDED against the installed tvOS 27.0 / watchOS 27.0 /
+    // visionOS 27.0 SDKs.
+    //
+    // The binding constraint was never a UI framework: it is this package's own
+    // use of `actor`, and SwiftTreeSitter 0.8.0 declares no platforms at all.
+    // Nothing here is macOS-specific, which is why the non-Apple-desktop
+    // platforms survive the floor raise intact.
     platforms: [
-        .macOS(.v10_15),
-        .iOS(.v13),
-        .tvOS(.v13),
-        .watchOS(.v6),
-        .visionOS(.v1),
+        .macOS("27.0"),
+        .iOS("27.0"),
+        .tvOS("27.0"),
+        .watchOS("27.0"),
+        .visionOS("27.0"),
     ],
     products: [
         .library(name: "TreeSitterCore", targets: ["TreeSitterCore"]),
@@ -47,7 +76,9 @@ let package = Package(
         .library(name: "TreeSitterTestSupport", targets: ["TreeSitterTestSupport"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/ajmcclary/LanguageKit.git", .upToNextMinor(from: "0.1.0")),
+        // LanguageKit 0.2.0 is the first release carrying the macOS 27 floor; the
+        // previous `.upToNextMinor(from: "0.1.0")` range (< 0.2.0) cannot resolve it.
+        .package(url: "https://github.com/ajmcclary/LanguageKit.git", .upToNextMinor(from: "0.2.0")),
         // Pinned exactly as RepoPrompt pins it (the proven implementation this
         // package was extracted from). Upgrading to the maintained
         // tree-sitter/swift-tree-sitter upstream is a deliberate, separate change.
@@ -201,6 +232,7 @@ let package = Package(
             ],
             swiftSettings: swiftSettings
         ),
-    ],
-    swiftLanguageModes: [.v6]
+    ]
+    // No package-level `swiftLanguageModes:` — the Swift 6 language mode is
+    // declared per target via `swiftSettings` (see `swiftSettings` above).
 )
