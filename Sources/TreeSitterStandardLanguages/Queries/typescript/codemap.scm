@@ -407,13 +407,27 @@
 ; =============================================================================
 ; Top-level Variables (scoped to program level, excludes arrow functions)
 ; =============================================================================
-;; Exclude arrow functions (handled above as functions)
+;; Exclude constants whose value IS an arrow function (captured above as
+;; functions), decided from the value's node type: an arrow nested anywhere
+;; inside another value (`(() => x)()`, `useCallback(() => {})`, an object
+;; member, the type in `… as <T>() => X`) does not make the constant a
+;; function. Searching the value's text for "=>" dropped those constants.
+;; A parenthesized value is matched by the next pattern, which looks inside.
+;; `#not-kind?` is evaluated by TreeSitterKit (SyntaxParser.resolvedCaptures).
 (program
     (lexical_declaration
         (variable_declarator
             name: (identifier) @variable.global
             value: (_) @_val))
-    (#not-match? @_val "=>"))
+    (#not-kind? @_val "arrow_function" "parenthesized_expression"))
+
+;; `const x = ( … )`: a global unless the parentheses hold an arrow function.
+(program
+    (lexical_declaration
+        (variable_declarator
+            name: (identifier) @variable.global
+            value: (parenthesized_expression . (_) @_paren .) @_val))
+    (#not-kind? @_paren "arrow_function"))
 
 ;; Variable declarations without initializers
 (program
@@ -422,11 +436,18 @@
             name: (identifier) @variable.global
             !value)))
 
-;; Exported variables
+;; Exported variables (same rule as above)
 (program
     (export_statement
         (lexical_declaration
             (variable_declarator
                 name: (identifier) @variable.global
                 value: (_) @_val2))
-        (#not-match? @_val2 "=>")))
+        (#not-kind? @_val2 "arrow_function" "parenthesized_expression")))
+(program
+    (export_statement
+        (lexical_declaration
+            (variable_declarator
+                name: (identifier) @variable.global
+                value: (parenthesized_expression . (_) @_paren .) @_val2))
+        (#not-kind? @_paren "arrow_function")))

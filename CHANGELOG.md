@@ -3,6 +3,23 @@
 All notable changes to TreeSitterKit are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Fixed
+
+- **TypeScript/TSX code map: constants whose value merely contains an arrow
+  are globals again.** 0.3.1 kept arrow-function constants out of
+  `variable.global` with `(#not-match? @_val "=>")`, which searched the whole
+  value's text, so `export const CONFIG = (() => …)()`, a call taking an arrow
+  argument, an object with arrow members, and a value cast to a function type
+  (`forwardRef(function List…) as <T>(…) => JSX.Element`) were dropped from
+  the code map. The rule now looks at the value's node type: a constant is
+  excluded only when its value is an arrow function (plain, `async`, or in
+  parentheses). Capture sets are those of 0.3.0 for every other value.
+- The bundled queries can use `(#not-kind? @capture "node_type" …)`, which
+  `SyntaxParser` evaluates: the match is kept only when no node of the capture
+  has one of the listed types.
+
 ## 0.3.1 — 2026-11-12
 
 This release remediates the 2026-11-12 full review.

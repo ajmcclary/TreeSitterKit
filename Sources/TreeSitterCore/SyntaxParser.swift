@@ -228,12 +228,38 @@ public actor SyntaxParser {
     /// `QueryCursor` yields every structural match; predicates are evaluated
     /// only by `resolve(with:)`, so skipping it reports captures such as
     /// `(#eq? @variable.builtin "Self")` for every type name.
+    ///
+    /// The bundled queries may also use `(#not-kind? @capture "type" …)`,
+    /// which TreeSitterKit evaluates itself (SwiftTreeSitter passes unknown
+    /// predicates through): the match is kept only when no node of
+    /// `@capture` has one of the listed node types. It lets a query exclude
+    /// a node by its syntax-tree type, which a query pattern cannot negate
+    /// and a text predicate can only approximate.
     private static func resolvedCaptures(query: Query, root: Node, tree: MutableTree, content: String) -> [SyntaxCapture] {
         let cursor = query.execute(node: root, in: tree)
         return cursor
             .resolve(with: Predicate.Context(string: content))
+            .filter(satisfiesNodeKindPredicates)
             .highlights()
             .map { SyntaxCapture(name: $0.name, range: $0.range) }
+    }
+
+    /// Name of the node-type predicate evaluated by ``resolvedCaptures``.
+    static let notKindPredicateName = "not-kind?"
+
+    private static func satisfiesNodeKindPredicates(_ match: QueryMatch) -> Bool {
+        for predicate in match.predicates {
+            guard case let .generic(name, strings, captureNames) = predicate,
+                  name == notKindPredicateName else { continue }
+            let excluded = Set(strings)
+            for captureName in captureNames {
+                for capture in match.captures(named: captureName)
+                where capture.node.nodeType.map(excluded.contains) == true {
+                    return false
+                }
+            }
+        }
+        return true
     }
 
     /// Resolves the registration for a language, throwing when unsupported.
