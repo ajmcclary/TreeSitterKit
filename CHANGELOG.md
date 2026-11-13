@@ -3,6 +3,18 @@
 All notable changes to TreeSitterKit are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Fixed
+
+- **Highlight and code-map queries now evaluate their predicates.**
+  `SyntaxParser.captures(in:language:)` and `codeMapCaptures(in:language:)`
+  previously reported every structural match and ignored `#eq?`, `#match?`
+  and the other predicates, so (for example) every Swift type name was also
+  captured as `variable.builtin` and every Python identifier as `constant`.
+  Captures whose predicates fail are now dropped. Consumers that styled or
+  indexed by the last capture at a range will see different, correct output.
+
 ## 0.2.0
 
 ### Changed

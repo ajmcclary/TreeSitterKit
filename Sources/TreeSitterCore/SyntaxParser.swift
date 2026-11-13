@@ -192,8 +192,7 @@ public actor SyntaxParser {
 
         // Cursors are stateful: create per operation, consume within this
         // isolated call, never shared.
-        let cursor = query.execute(node: root, in: tree)
-        return cursor.highlights().map { SyntaxCapture(name: $0.name, range: $0.range) }
+        return Self.resolvedCaptures(query: query, root: root, tree: tree, content: content)
     }
 
     /// Runs the language's code-map query and returns its captures.
@@ -218,11 +217,24 @@ public actor SyntaxParser {
             return []
         }
 
-        let cursor = query.execute(node: root, in: tree)
-        return cursor.highlights().map { SyntaxCapture(name: $0.name, range: $0.range) }
+        return Self.resolvedCaptures(query: query, root: root, tree: tree, content: content)
     }
 
     // MARK: - Internals
+
+    /// Executes `query` and returns the captures of the matches whose
+    /// predicates (`#eq?`, `#match?`, `#any-of?`, …) hold for `content`.
+    ///
+    /// `QueryCursor` yields every structural match; predicates are evaluated
+    /// only by `resolve(with:)`, so skipping it reports captures such as
+    /// `(#eq? @variable.builtin "Self")` for every type name.
+    private static func resolvedCaptures(query: Query, root: Node, tree: MutableTree, content: String) -> [SyntaxCapture] {
+        let cursor = query.execute(node: root, in: tree)
+        return cursor
+            .resolve(with: Predicate.Context(string: content))
+            .highlights()
+            .map { SyntaxCapture(name: $0.name, range: $0.range) }
+    }
 
     /// Resolves the registration for a language, throwing when unsupported.
     ///
