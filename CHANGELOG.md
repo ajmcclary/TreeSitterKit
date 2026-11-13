@@ -16,6 +16,14 @@ to [Semantic Versioning](https://semver.org).
   the code map. The rule now looks at the value's node type: a constant is
   excluded only when its value is an arrow function (plain, `async`, or in
   parentheses). Capture sets are those of 0.3.0 for every other value.
+- **Rust, C, Java and JavaScript highlight queries: all-caps constants.**
+  Rust's constant regex ended in a stray `'` (`"^[A-Z][A-Z\\d_]+$'"`, as
+  upstream tree-sitter-rust has it), so since 0.3.1 no Rust identifier was
+  a `constant`. In all four queries the digit class had been copied as `\d`
+  rather than upstream's `\\d`; tree-sitter's string syntax drops that
+  backslash, so names with digits (`HTTP2_PORT`) were not constants either.
+  The test suite now checks that every `#match?`/`#not-match?` pattern
+  compiles, loses no escape and has no unbalanced quote.
 - The bundled queries can use `(#not-kind? @capture "node_type" …)`, which
   `SyntaxParser` evaluates: the match is kept only when no node of the capture
   has one of the listed types.

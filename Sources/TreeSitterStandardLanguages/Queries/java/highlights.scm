@@ -57,7 +57,7 @@
 ; Constants
 
 ((identifier) @constant
- (#match? @constant "^_*[A-Z][A-Z\d_]+$"))
+ (#match? @constant "^_*[A-Z][A-Z\\d_]+$"))
 
 ; Builtins
 
