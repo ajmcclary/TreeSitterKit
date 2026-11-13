@@ -3,34 +3,52 @@
 All notable changes to TreeSitterKit are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 0.3.2 — 2026-11-13
+
+This release remediates the 2026-11-12 full review.
 
 ### Fixed
 
 - **TypeScript/TSX code map: constants whose value merely contains an arrow
-  are globals again.** 0.3.1 kept arrow-function constants out of
-  `variable.global` with `(#not-match? @_val "=>")`, which searched the whole
-  value's text, so `export const CONFIG = (() => …)()`, a call taking an arrow
-  argument, an object with arrow members, and a value cast to a function type
-  (`forwardRef(function List…) as <T>(…) => JSX.Element`) were dropped from
-  the code map. The rule now looks at the value's node type: a constant is
-  excluded only when its value is an arrow function (plain, `async`, or in
-  parentheses, comments in the parentheses allowed). Capture sets are those of
-  0.3.0 for every other value, including a parenthesized value with a comment
-  (`( /* note */ call() )`, a Prettier-style commented JSX constant).
-- The test suite fails on any predicate name in a bundled query that the
-  evaluator does not implement (an unknown name is otherwise a silent no-op).
+  are globals again (regression in 0.3.1).** 0.3.1 kept arrow-function
+  constants out of `variable.global` with `(#not-match? @_val "=>")`, which
+  searched the whole value's text, so a top-level constant was dropped from
+  the code map whenever `=>` appeared anywhere in its value: an immediately
+  invoked arrow (`export const CONFIG = (() => …)()`), a call taking an arrow
+  argument, an object literal with arrow members, an `as` cast or annotation
+  with a function type (`forwardRef(function List…) as <T>(…) => JSX.Element`),
+  or a string containing `=>`. The rule now looks at the value's node type,
+  with the new `#not-kind?` predicate: a constant is left out of
+  `variable.global` only when its value is itself an arrow function (plain,
+  `async`, or in parentheses, comments in the parentheses allowed). Capture
+  sets are those of 0.3.0 for every other value, including a parenthesized
+  value with a comment (`( /* note */ call() )`, a Prettier-style commented
+  JSX constant).
 - **Rust, C, Java and JavaScript highlight queries: all-caps constants.**
   Rust's constant regex ended in a stray `'` (`"^[A-Z][A-Z\\d_]+$'"`, as
   upstream tree-sitter-rust has it), so since 0.3.1 no Rust identifier was
   a `constant`. In all four queries the digit class had been copied as `\d`
   rather than upstream's `\\d`; tree-sitter's string syntax drops that
-  backslash, so names with digits (`HTTP2_PORT`) were not constants either.
-  The test suite now checks that every `#match?`/`#not-match?` pattern
-  compiles, loses no escape and has no unbalanced quote.
+  backslash, so names with digits (`HTTP2_PORT`) were never constants.
+
+### Added
+
 - The bundled queries can use `(#not-kind? @capture "node_type" …)`, which
   `SyntaxParser` evaluates: the match is kept only when no node of the capture
   has one of the listed types.
+
+### Notes
+
+- The test suite now fails on any bundled query predicate whose
+  `#match?`/`#not-match?` pattern does not compile (or loses an escape, or has
+  an unbalanced quote), and on any predicate name the evaluator does not
+  implement (an unknown name is otherwise a silent no-op).
+- Known: in the Rust highlight query the `@constructor` rule (any name
+  starting with a capital) follows the `@constant` rule, as upstream's does,
+  so a consumer where the last capture at a range wins colours all-caps names
+  as `constructor` (typically a type colour) rather than `constant`.
+- Public API is unchanged. Dependencies are unchanged: `LanguageKit`
+  `.upToNextMinor(from: "0.2.0")`, `SwiftTreeSitter` `exact: "0.8.0"`.
 
 ## 0.3.1 — 2026-11-12
 
