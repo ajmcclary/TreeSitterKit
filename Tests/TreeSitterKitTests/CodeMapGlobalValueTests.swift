@@ -95,4 +95,42 @@ import TreeSitterStandardLanguages
         """
         #expect(try await globals(source, .tsx) == ["Button", "Card"])
     }
+
+    private func functions(_ source: String, _ language: LanguageID) async throws -> [String] {
+        let parser = try SyntaxParser.standard()
+        let captures = try await parser.codeMapCaptures(in: source, language: language)
+        let text = source as NSString
+        return captures.filter { $0.name == "function.definition" }.map { text.substring(with: $0.range) }
+    }
+
+    /// A comment is a named child of the parentheses. A parenthesized value
+    /// that holds a comment and a non-arrow is a global (as on 0.3.0 and
+    /// 0.3.1), reported once; one that holds a comment and an arrow is a
+    /// function, not a global.
+    @Test(arguments: [LanguageID.typescript, .tsx])
+    func parenthesizedValuesWithCommentsAreClassifiedByTheirExpression(language: LanguageID) async throws {
+        let source = """
+        export const cmt = ( /* note */ someCall() );
+        export const cmt2 = (someCall() /* trailing */);
+        const localCmt = ( /* c */ compute() );
+        export const commentedArrow = ( // why
+            () => 1
+        );
+        const localCommentedArrow = ( /* c */ (x: number) => x );
+        const twoComments = ( /* x */ /* y */ (z: number) => z );
+        """
+        #expect(try await globals(source, language) == ["cmt", "cmt2", "localCmt"])
+        #expect(try await functions(source, language) == ["commentedArrow", "localCommentedArrow", "twoComments"])
+    }
+
+    /// Prettier's layout for a JSX constant with a leading comment.
+    @Test func parenthesizedJSXWithALeadingCommentIsAGlobal() async throws {
+        let source = """
+        export const Hero = (
+          // marketing hero
+          <section className="hero" />
+        );
+        """
+        #expect(try await globals(source, .tsx) == ["Hero"])
+    }
 }

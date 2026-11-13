@@ -422,11 +422,14 @@
     (#not-kind? @_val "arrow_function" "parenthesized_expression"))
 
 ;; `const x = ( … )`: a global unless the parentheses hold an arrow function.
+;; `(_)+` collects every named child, comments included (a comment is a named
+;; extra, so a single anchored child would miss `( /* note */ call() )`); the
+;; match is dropped when any of them is an arrow.
 (program
     (lexical_declaration
         (variable_declarator
             name: (identifier) @variable.global
-            value: (parenthesized_expression . (_) @_paren .) @_val))
+            value: (parenthesized_expression (_)+ @_paren) @_val))
     (#not-kind? @_paren "arrow_function"))
 
 ;; Variable declarations without initializers
@@ -449,5 +452,5 @@
         (lexical_declaration
             (variable_declarator
                 name: (identifier) @variable.global
-                value: (parenthesized_expression . (_) @_paren .) @_val2))
+                value: (parenthesized_expression (_)+ @_paren) @_val2))
         (#not-kind? @_paren "arrow_function")))

@@ -15,7 +15,11 @@ to [Semantic Versioning](https://semver.org).
   (`forwardRef(function List…) as <T>(…) => JSX.Element`) were dropped from
   the code map. The rule now looks at the value's node type: a constant is
   excluded only when its value is an arrow function (plain, `async`, or in
-  parentheses). Capture sets are those of 0.3.0 for every other value.
+  parentheses, comments in the parentheses allowed). Capture sets are those of
+  0.3.0 for every other value, including a parenthesized value with a comment
+  (`( /* note */ call() )`, a Prettier-style commented JSX constant).
+- The test suite fails on any predicate name in a bundled query that the
+  evaluator does not implement (an unknown name is otherwise a silent no-op).
 - **Rust, C, Java and JavaScript highlight queries: all-caps constants.**
   Rust's constant regex ended in a stray `'` (`"^[A-Z][A-Z\\d_]+$'"`, as
   upstream tree-sitter-rust has it), so since 0.3.1 no Rust identifier was

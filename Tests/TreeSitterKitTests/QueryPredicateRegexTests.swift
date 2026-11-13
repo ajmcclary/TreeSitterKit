@@ -46,6 +46,19 @@ import Testing
     /// Tokenizes a query just enough to find each `#match?`/`#not-match?`
     /// and its first string argument (skipping `;` comments and strings).
     private static func regexPredicates(in source: String, file: String) -> [RegexPredicate] {
+        scan(source, file: file).regexes
+    }
+
+    /// Every `#name` (predicate or directive) in a query, with its line.
+    private static func predicateNames(in source: String, file: String) -> [(name: String, location: String)] {
+        scan(source, file: file).names
+    }
+
+    private static func scan(
+        _ source: String,
+        file: String
+    ) -> (regexes: [RegexPredicate], names: [(name: String, location: String)]) {
+        var names: [(name: String, location: String)] = []
         var predicates: [RegexPredicate] = []
         let characters = Array(source)
         var index = 0
@@ -87,13 +100,53 @@ import Testing
                     name.append(characters[index])
                     index += 1
                 }
+                names.append((name: name, location: "\(file):\(line)"))
                 pendingRegexPredicate = name == "match?" || name == "not-match?"
 
             default:
                 index += 1
             }
         }
-        return predicates
+        return (predicates, names)
+    }
+
+    private static func allQuerySources() throws -> [(file: String, source: String)] {
+        var sources: [(file: String, source: String)] = []
+        for registration in try StandardSyntaxLanguages.registrations() {
+            if let source = registration.highlightQuerySource {
+                sources.append((file: "\(registration.language)/highlights.scm", source: source))
+            }
+            if let source = registration.codeMapQuerySource {
+                sources.append((file: "\(registration.language)/codemap.scm", source: source))
+            }
+        }
+        return sources
+    }
+
+    /// Predicates and directives the evaluator implements: SwiftTreeSitter's
+    /// built-ins plus TreeSitterKit's `#not-kind?`. Any other name parses as
+    /// a generic predicate that always passes, so a misspelling such as
+    /// `#not-kid?` would ship as a silent no-op.
+    static let implementedPredicateNames: Set<String> = [
+        "eq?", "not-eq?", "match?", "not-match?", "any-of?", "not-any-of?", "is-not?", "set!",
+        "not-kind?"
+    ]
+
+    @Test func everyPredicateNameIsImplemented() throws {
+        var seen = 0
+        for (file, source) in try Self.allQuerySources() {
+            for (name, location) in Self.predicateNames(in: source, file: file) {
+                seen += 1
+                #expect(Self.implementedPredicateNames.contains(name), "\(location): #\(name) is not implemented")
+            }
+        }
+        #expect(seen >= 30)
+    }
+
+    @Test func aMisspelledPredicateNameIsReported() {
+        let names = Self.predicateNames(in: "((identifier) @x (#not-kid? @x \"a\"))\n; (#bogus? @x)", file: "t.scm")
+        #expect(names.map(\.name) == ["not-kid?"])
+        #expect(!Self.implementedPredicateNames.contains("not-kid?"))
     }
 
     private static func allRegexPredicates() throws -> [RegexPredicate] {
