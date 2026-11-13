@@ -3,7 +3,9 @@
 All notable changes to TreeSitterKit are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 0.3.1 — 2026-11-12
+
+This release remediates the 2026-11-12 full review.
 
 ### Fixed
 
@@ -14,6 +16,24 @@ to [Semantic Versioning](https://semver.org).
   captured as `variable.builtin` and every Python identifier as `constant`.
   Captures whose predicates fail are now dropped. Consumers that styled or
   indexed by the last capture at a range will see different, correct output.
+- **Consumers that pin code-map output must regenerate their expectations.**
+  Evaluating predicates changes the capture sets of both the highlight and
+  the code-map queries, so golden files of captures or of anything derived
+  from them will differ. For example, TypeScript/TSX arrow-function `const`s
+  are no longer also captured as `variable.global`, in TSX a `const`
+  initialised by a call other than `forwardRef`/`memo` is no longer a
+  `function.definition`,
+  and Ruby `Foo.new` is no longer an `import`.
+
+### Notes
+
+- Public API is unchanged. Dependencies are unchanged: `LanguageKit`
+  `.upToNextMinor(from: "0.2.0")`, `SwiftTreeSitter` `exact: "0.8.0"`.
+- `TreeSitterDiagnostics`' ad-hoc `runQuery` still reports raw, unresolved
+  matches.
+- `0.3.0` (2026-07-25) has no entry of its own: it moved to Swift 6
+  per-target settings, a 27.0 floor on all five platforms, and `LanguageKit`
+  `.upToNextMinor(from: "0.2.0")`.
 
 ## 0.2.0
 

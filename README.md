@@ -150,13 +150,13 @@ carrying a second copy.
 
 **Consumable by version.** Because TreeSitterKit no longer has any
 revision-pinned dependencies, SwiftPM will resolve a stable-version dependency on
-it. The workspace controller tags this vendoring release `0.2.0`; consume it
-with a semantic-version requirement:
+it. Vendoring shipped in `0.2.0`; consume the latest release (`0.3.1`) with a
+semantic-version requirement:
 
 ```swift
 .package(
     url: "https://github.com/ajmcclary/TreeSitterKit.git",
-    from: "0.2.0"
+    from: "0.3.1"
 )
 ```
 
